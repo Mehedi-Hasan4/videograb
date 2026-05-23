@@ -68,6 +68,7 @@
             font-size: 15px;
             margin-bottom: 1.5rem;
             transition: border-color 0.2s;
+            box-sizing: border-box;
         }
 
         input[type="text"]:focus {
@@ -121,6 +122,12 @@
         .spinner {
             font-size: 20px;
             margin-bottom: 0.5rem;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .error-msg {
@@ -219,6 +226,16 @@
             margin-bottom: 2rem;
         }
 
+        .note {
+            background: #1e3a8a;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            color: #93c5fd;
+            font-size: 14px;
+        }
+
         @media (max-width: 640px) {
             .info-grid {
                 grid-template-columns: 1fr;
@@ -230,6 +247,10 @@
 
             .input-section {
                 padding: 1.5rem;
+            }
+
+            .formats-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
             }
         }
     </style>
@@ -259,6 +280,10 @@
         </div>
 
         <div class="formats-container" id="formatsContainer">
+            <div class="note">
+                💡 <strong>How to download:</strong> Click any format below. You'll be sent to y2mate.com where you can download in that format.
+            </div>
+
             <div class="section-div">
                 <div class="info-grid">
                     <div class="info-box">
@@ -298,6 +323,8 @@
         const audioFormats = document.getElementById('audioFormats');
         const resetBtn = document.getElementById('resetBtn');
 
+        let currentUrl = '';
+
         const videoFormatOptions = [
             { format: 'MP4', quality: '1080p', size: '48 MB' },
             { format: 'MP4', quality: '720p', size: '32 MB' },
@@ -322,10 +349,25 @@
             errorMsg.style.display = 'none';
         }
 
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            return `${minutes}m ${secs}s`;
+        }
+
         function extractVideoId(url) {
             const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
             const match = url.match(regExp);
             return match && match[2].length === 11 ? match[2] : null;
+        }
+
+        function openY2mate(url, format) {
+            // Open y2mate.com with the YouTube URL
+            // y2mate will handle the download
+            const y2mateUrl = `https://y2mate.com/youtube/${extractVideoId(url)}`;
+            window.open(y2mateUrl, '_blank');
         }
 
         function createFormatCard(option, isAudio = false) {
@@ -335,9 +377,7 @@
                 <div class="format-name">${option.format}</div>
                 <div class="format-size">${option.quality} • ${option.size}</div>
             `;
-            div.onclick = () => {
-                alert(`Download Link Required\n\nTo enable downloads:\n\n1. Set up backend API (yt-dlp)\n2. Or use: https://y2mate.com\n3. Or deploy with Flask/Node.js\n\nFormat: ${option.format}\nQuality: ${option.quality}`);
-            };
+            div.onclick = () => openY2mate(currentUrl, option.format);
             return div;
         }
 
@@ -354,6 +394,7 @@
                 return;
             }
 
+            currentUrl = url;
             hideError();
             loadingMsg.style.display = 'block';
             formatsContainer.style.display = 'none';
@@ -364,7 +405,6 @@
                 
                 const data = await response.json();
                 videoTitle.textContent = data.title;
-                videoDuration.textContent = 'Loading...';
                 
                 // Clear previous formats
                 videoFormats.innerHTML = '';
@@ -384,7 +424,7 @@
                 loadingMsg.style.display = 'none';
                 formatsContainer.style.display = 'block';
 
-            } catch (err) {
+            } catch (error) {
                 showError('Error fetching video. Please check the URL and try again.');
             }
         });
@@ -393,6 +433,7 @@
             urlInput.value = '';
             formatsContainer.style.display = 'none';
             hideError();
+            currentUrl = '';
             urlInput.focus();
         });
 
