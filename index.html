@@ -159,62 +159,62 @@
     <script>
         document.getElementById('fetchBtn').addEventListener('click', downloadVideo);
 
-        async function downloadVideo() {
-            const urlInput = document.getElementById('urlInput').value.trim();
-            const statusBox = document.getElementById('statusBox');
+async function downloadVideo() {
+    const urlInput = document.getElementById('urlInput').value.trim();
+    const statusBox = document.getElementById('statusBox');
 
-            if (!urlInput) {
-                showStatus("Please enter a valid YouTube video URL.", "error");
-                return;
-            }
+    if (!urlInput) {
+        showStatus("Please enter a valid YouTube video URL.", "error");
+        return;
+    }
 
-            showStatus("⏳ Processing video request via Cobalt API...", "info");
+    showStatus("⏳ Processing video request...", "info");
 
-            try {
-                const response = await fetch("https://api.cobalt.tools/", {
-                    method: "POST",
-                    headers: {
-                        "Accept": "application/json",
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        url: urlInput,
-                        videoQuality: "1080",
-                        downloadMode: "auto"
-                    })
-                });
+    try {
+        // Use a public API instance or configured Cobalt processing endpoint
+        const response = await fetch("https://cobalt-api.kwippy.com/", {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                url: urlInput,
+                videoQuality: "720"
+            })
+        });
 
-                const data = await response.json();
+        const data = await response.json();
 
-                if (data.status === "tunnel" || data.status === "redirect") {
-                    statusBox.className = "btn-status status-success";
-                    statusBox.style.display = "block";
-                    statusBox.innerHTML = `
-                        <p>✅ <strong>Video Ready!</strong></p>
-                        <a href="${data.url}" class="dl-btn" target="_blank" rel="noopener">Click Here to Download</a>
-                    `;
-                } else if (data.status === "picker") {
-                    let pickerHtml = "<p><strong>Select Stream:</strong></p><ul style='margin-top:8px;'>";
-                    data.picker.forEach(item => {
-                        pickerHtml += `<li style='margin-bottom:6px;'><a href="${item.url}" target="_blank" style="color:#a7f3d0;">${item.type || 'Download Stream'}</a></li>`;
-                    });
-                    pickerHtml += "</ul>";
-                    showStatus(pickerHtml, "success");
-                } else {
-                    showStatus("Error: " + (data.text || data.error?.code || "Failed to extract video stream."), "error");
-                }
-            } catch (err) {
-                console.error(err);
-                showStatus("Network Error: Direct client request was blocked or Cobalt API rate limit reached.", "error");
-            }
-        }
-
-        function showStatus(message, type) {
-            const statusBox = document.getElementById('statusBox');
-            statusBox.className = `btn-status status-${type}`;
+        if (data.status === "tunnel" || data.status === "redirect") {
+            statusBox.className = "btn-status status-success";
             statusBox.style.display = "block";
-            statusBox.innerHTML = message;
+            statusBox.innerHTML = `
+                <p>✅ <strong>Video Ready!</strong></p>
+                <a href="${data.url}" class="dl-btn" target="_blank" rel="noopener">Click Here to Download</a>
+            `;
+        } else if (data.status === "picker") {
+            let pickerHtml = "<p><strong>Select Stream:</strong></p><ul style='margin-top:8px;'>";
+            data.picker.forEach(item => {
+                pickerHtml += `<li style='margin-bottom:6px;'><a href="${item.url}" target="_blank" style="color:#a7f3d0;">${item.type || 'Download Stream'}</a></li>`;
+            });
+            pickerHtml += "</ul>";
+            showStatus(pickerHtml, "success");
+        } else {
+            showStatus("Error: " + (data.text || data.error?.code || "Failed to extract stream."), "error");
         }
+    } catch (err) {
+        console.error(err);
+        showStatus("Network Error: Connection failed or instance is rate-limited.", "error");
+    }
+}
+
+function showStatus(message, type) {
+    const statusBox = document.getElementById('statusBox');
+    statusBox.className = `btn-status status-${type}`;
+    statusBox.style.display = "block";
+    statusBox.innerHTML = message;
+}
     </script>
 </body>
 </html>
