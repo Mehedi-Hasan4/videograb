@@ -159,6 +159,15 @@
     <script>
     document.getElementById('fetchBtn').addEventListener('click', downloadVideo);
 
+    // List of reliable public CORS-friendly Invidious API instances
+    const INVIDIOUS_INSTANCES = [
+        "https://inv.api.store",
+        "https://invidious.nerqv.ps",
+        "https://vid.puffyan.us",
+        "https://invidious.drgns.space",
+        "https://inv.tux.im"
+    ];
+
     async function downloadVideo() {
         const urlInput = document.getElementById('urlInput').value.trim();
         const statusBox = document.getElementById('statusBox');
@@ -168,7 +177,7 @@
             return;
         }
 
-        // Extract Video ID from YouTube URL (handles watch, shorts, and embed formats)
+        // Extract 11-character YouTube Video ID
         const videoIdMatch = urlInput.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
         
         if (!videoIdMatch || !videoIdMatch[1]) {
@@ -177,30 +186,42 @@
         }
 
         const videoId = videoIdMatch[1];
-        showStatus("⏳ Fetching video streams...", "info");
+        showStatus("⏳ Fetching video information...", "info");
+
+        let videoData = null;
+
+        // Loop through public instances until one responds
+        for (const instance of INVIDIOUS_INSTANCES) {
+            try {
+                const response = await fetch(`${instance}/api/v1/videos/${videoId}`);
+                if (response.ok) {
+                    videoData = await response.json();
+                    break;
+                }
+            } catch (err) {
+                console.warn(`Instance ${instance} failed, trying next...`);
+            }
+        }
+
+        if (!videoData) {
+            showStatus("All public instances are currently rate-limited. Please try again in a few minutes.", "error");
+            return;
+        }
 
         try {
-            // Using Piped public API for CORS-friendly stream extraction
-            const response = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`);
+            // Filter combined video/audio streams or direct format streams
+            const formatStreams = videoData.formatStreams || [];
+            const adaptiveFormats = videoData.adaptiveFormats || [];
 
-            if (!response.ok) {
-                throw new Error(`Server returned status ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            if (data.videoStreams && data.videoStreams.length > 0) {
-                let htmlContent = `<p style="margin-bottom: 12px;">✅ <strong>${data.title || 'Video Streams'}</strong></p>`;
-                htmlContent += `<p style="font-size: 14px; margin-bottom: 10px;">Select quality to download:</p>`;
+            if (formatStreams.length > 0) {
+                let htmlContent = `<p style="margin-bottom: 12px;">✅ <strong>${videoData.title}</strong></p>`;
+                htmlContent += `<p style="font-size: 14px; margin-bottom: 10px;">Click a stream below to download:</p>`;
                 htmlContent += `<div style="display: flex; flex-wrap: wrap; gap: 8px;">`;
 
-                // Filter video streams that contain audio or offer direct playback
-                const usableStreams = data.videoStreams.filter(s => s.url);
-
-                usableStreams.slice(0, 6).forEach(stream => {
+                formatStreams.forEach(stream => {
                     htmlContent += `
                         <a href="${stream.url}" class="dl-btn" target="_blank" rel="noopener" download>
-                            ${stream.quality || 'Download'} (${stream.format || 'MP4'})
+                            ${stream.qualityLabel || stream.quality} (${stream.container.toUpperCase()})
                         </a>
                     `;
                 });
@@ -208,11 +229,11 @@
                 htmlContent += `</div>`;
                 showStatus(htmlContent, "success");
             } else {
-                showStatus("No direct video streams found for this video.", "error");
+                showStatus("No direct video download streams available for this video.", "error");
             }
         } catch (err) {
             console.error(err);
-            showStatus("Failed to extract video streams. YouTube may have updated its restrictions or the API rate limit was hit.", "error");
+            showStatus("Error rendering stream links.", "error");
         }
     }
 
