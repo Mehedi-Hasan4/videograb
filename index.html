@@ -157,92 +157,89 @@
     </div>
 
     <script>
-    document.getElementById('fetchBtn').addEventListener('click', downloadVideo);
-
-    // List of reliable public CORS-friendly Invidious API instances
-    const INVIDIOUS_INSTANCES = [
-        "https://inv.api.store",
-        "https://invidious.nerqv.ps",
-        "https://vid.puffyan.us",
-        "https://invidious.drgns.space",
-        "https://inv.tux.im"
-    ];
-
-    async function downloadVideo() {
-        const urlInput = document.getElementById('urlInput').value.trim();
-        const statusBox = document.getElementById('statusBox');
-
-        if (!urlInput) {
-            showStatus("Please enter a valid YouTube video URL.", "error");
-            return;
-        }
-
-        // Extract 11-character YouTube Video ID
-        const videoIdMatch = urlInput.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-        
-        if (!videoIdMatch || !videoIdMatch[1]) {
-            showStatus("Invalid YouTube URL. Please enter a full YouTube link.", "error");
-            return;
-        }
-
-        const videoId = videoIdMatch[1];
-        showStatus("⏳ Fetching video information...", "info");
-
-        let videoData = null;
-
-        // Loop through public instances until one responds
-        for (const instance of INVIDIOUS_INSTANCES) {
+        document.getElementById('fetchBtn').addEventListener('click', downloadVideo);
+    
+        const INVIDIOUS_INSTANCES = [
+            "https://inv.api.store",
+            "https://invidious.nerqv.ps",
+            "https://vid.puffyan.us",
+            "https://invidious.drgns.space"
+        ];
+    
+        async function downloadVideo() {
+            const urlInput = document.getElementById('urlInput').value.trim();
+            const statusBox = document.getElementById('statusBox');
+    
+            if (!urlInput) {
+                showStatus("Please enter a valid YouTube video URL.", "error");
+                return;
+            }
+    
+            const videoIdMatch = urlInput.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+            
+            if (!videoIdMatch || !videoIdMatch[1]) {
+                showStatus("Invalid YouTube URL. Please enter a full YouTube link.", "error");
+                return;
+            }
+    
+            const videoId = videoIdMatch[1];
+            showStatus("⏳ Extracting video streams via CORS proxy...", "info");
+    
+            let videoData = null;
+    
+            for (const instance of INVIDIOUS_INSTANCES) {
+                try {
+                    // Route through corsproxy.io to bypass origin blocking
+                    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(`${instance}/api/v1/videos/${videoId}`)}`;
+                    const response = await fetch(proxyUrl);
+                    
+                    if (response.ok) {
+                        videoData = await response.json();
+                        break;
+                    }
+                } catch (err) {
+                    console.warn(`Instance ${instance} failed via proxy, trying next...`);
+                }
+            }
+    
+            if (!videoData) {
+                showStatus("Public instances are temporarily unavailable. Please try deploying a backend or trying later.", "error");
+                return;
+            }
+    
             try {
-                const response = await fetch(`${instance}/api/v1/videos/${videoId}`);
-                if (response.ok) {
-                    videoData = await response.json();
-                    break;
+                const formatStreams = videoData.formatStreams || [];
+    
+                if (formatStreams.length > 0) {
+                    let htmlContent = `<p style="margin-bottom: 12px;">✅ <strong>${videoData.title}</strong></p>`;
+                    htmlContent += `<p style="font-size: 14px; margin-bottom: 10px;">Click a stream below to download:</p>`;
+                    htmlContent += `<div style="display: flex; flex-wrap: wrap; gap: 8px;">`;
+    
+                    formatStreams.forEach(stream => {
+                        htmlContent += `
+                            <a href="${stream.url}" class="dl-btn" target="_blank" rel="noopener" download>
+                                ${stream.qualityLabel || stream.quality} (${stream.container.toUpperCase()})
+                            </a>
+                        `;
+                    });
+    
+                    htmlContent += `</div>`;
+                    showStatus(htmlContent, "success");
+                } else {
+                    showStatus("No direct video download streams available for this video.", "error");
                 }
             } catch (err) {
-                console.warn(`Instance ${instance} failed, trying next...`);
+                console.error(err);
+                showStatus("Error rendering stream links.", "error");
             }
         }
-
-        if (!videoData) {
-            showStatus("All public instances are currently rate-limited. Please try again in a few minutes.", "error");
-            return;
+    
+        function showStatus(message, type) {
+            const statusBox = document.getElementById('statusBox');
+            statusBox.className = `btn-status status-${type}`;
+            statusBox.style.display = "block";
+            statusBox.innerHTML = message;
         }
-
-        try {
-            // Filter combined video/audio streams or direct format streams
-            const formatStreams = videoData.formatStreams || [];
-            const adaptiveFormats = videoData.adaptiveFormats || [];
-
-            if (formatStreams.length > 0) {
-                let htmlContent = `<p style="margin-bottom: 12px;">✅ <strong>${videoData.title}</strong></p>`;
-                htmlContent += `<p style="font-size: 14px; margin-bottom: 10px;">Click a stream below to download:</p>`;
-                htmlContent += `<div style="display: flex; flex-wrap: wrap; gap: 8px;">`;
-
-                formatStreams.forEach(stream => {
-                    htmlContent += `
-                        <a href="${stream.url}" class="dl-btn" target="_blank" rel="noopener" download>
-                            ${stream.qualityLabel || stream.quality} (${stream.container.toUpperCase()})
-                        </a>
-                    `;
-                });
-
-                htmlContent += `</div>`;
-                showStatus(htmlContent, "success");
-            } else {
-                showStatus("No direct video download streams available for this video.", "error");
-            }
-        } catch (err) {
-            console.error(err);
-            showStatus("Error rendering stream links.", "error");
-        }
-    }
-
-    function showStatus(message, type) {
-        const statusBox = document.getElementById('statusBox');
-        statusBox.className = `btn-status status-${type}`;
-        statusBox.style.display = "block";
-        statusBox.innerHTML = message;
-    }
-</script>
+    </script>
 </body>
 </html>
