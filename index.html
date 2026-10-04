@@ -168,6 +168,7 @@
                 return;
             }
     
+            // Validate YouTube URL
             const videoIdMatch = urlInput.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
             
             if (!videoIdMatch || !videoIdMatch[1]) {
@@ -175,16 +176,16 @@
                 return;
             }
     
-            // Direct web generator URL
-            const downloadRedirectUrl = `https://y2mate.nu/en-m2/youtube/${videoIdMatch[1]}`;
+            // Working web downloader link
+            const downloadRedirectUrl = `https://cobalt.tools/?url=${encodeURIComponent(urlInput)}`;
     
             statusBox.className = "btn-status status-success";
             statusBox.style.display = "block";
             statusBox.innerHTML = `
-                <p style="margin-bottom: 10px;">✅ <strong>Video Link Processed!</strong></p>
-                <p style="font-size: 14px; margin-bottom: 12px;">Click below to download your video or audio stream directly:</p>
+                <p style="margin-bottom: 10px;">✅ <strong>Link Processed!</strong></p>
+                <p style="font-size: 14px; margin-bottom: 12px;">Click below to open the downloader directly:</p>
                 <a href="${downloadRedirectUrl}" class="dl-btn" target="_blank" rel="noopener">
-                    Download MP4 / MP3
+                    Open Download Page
                 </a>
             `;
         }
