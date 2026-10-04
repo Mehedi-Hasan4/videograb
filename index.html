@@ -441,5 +441,45 @@
             if (e.key === 'Enter') fetchBtn.click();
         });
     </script>
+    <script>
+  async function downloadVideo() {
+    const videoUrl = document.getElementById('videoUrlInput').value;
+    const statusDiv = document.getElementById('status');
+    
+    if (!videoUrl) {
+      statusDiv.innerText = "Please enter a valid video URL.";
+      return;
+    }
+
+    statusDiv.innerText = "Processing video...";
+
+    try {
+      // Replace with your deployed backend server URL (e.g., Render or Railway)
+      const BACKEND_URL = "https://your-backend-service.onrender.com/api/download";
+
+      const response = await fetch(BACKEND_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: videoUrl })
+      });
+
+      const data = await response.json();
+
+      if (data.download_url) {
+        statusDiv.innerHTML = `
+          <p><strong>${data.title}</strong></p>
+          <a href="${data.download_url}" target="_blank" download="${data.title}.${data.ext}">
+            <button>Click to Download Video</button>
+          </a>
+        `;
+      } else {
+        statusDiv.innerText = "Error: " + (data.error || "Unable to retrieve video URL.");
+      }
+    } catch (err) {
+      statusDiv.innerText = "Network Error: Ensure your API server is running and CORS is enabled.";
+      console.error(err);
+    }
+  }
+</script>
 </body>
 </html>
